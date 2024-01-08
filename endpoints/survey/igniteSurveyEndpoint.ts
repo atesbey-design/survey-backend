@@ -1,12 +1,22 @@
 import { FastifyInstance } from 'fastify'
-import {} from './handlers'
-import { Authentication } from 'interceptors'
+import {
+  createSurveyHandler,
+  createSurveyResponseHandler,
+  getAllSurveysHandler,
+  getSurveyByIdHandler,
+  updateSurveyHandler,
+} from './handlers'
+import { Authenticator } from 'interceptors'
 
 export default async function (app: FastifyInstance) {
-  //   app.post('/signin', signinHandler)
-  //   app.post('/signup', createUserHandler)
-  //   app.post('/session', checkSession)
-  //   app.post('/signout', logout)
-  //   app.get('/', getAllUserHandler)
-  //   app.get('/:userId', getUserById)
+  app.register(Authorized)
+}
+
+async function Authorized (app: FastifyInstance) {
+  app.addHook('preValidation', Authenticator(app))
+  app.post('/create', createSurveyHandler)
+  app.post('/update/:surveyId', updateSurveyHandler)
+  app.post('/response', createSurveyResponseHandler)
+  app.get('/:surveyId', getSurveyByIdHandler)
+  app.get('/', getAllSurveysHandler)
 }
