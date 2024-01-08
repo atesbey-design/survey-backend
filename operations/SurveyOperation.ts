@@ -3,16 +3,19 @@ import { server } from '../igniteServer'
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { SurveyTypes } from '../endpoints/survey/handlers'
 
+// Function to create a new survey
 export const createSurvey = async (surveyData, userId) => {
-  const { title, description, questions } = surveyData
-  console.log(surveyData, 'dataaaaaaaaaaaaaaaaaaaaaa')
+  const { title, description, questions } = surveyData;
+
   try {
+    // Check if the user exists
     const userQuery = 'SELECT id FROM public.users WHERE id = $1'
     const userData = await pg.oneOrNone(userQuery, [userId])
     if (!userData) {
       return null
     }
 
+    // Insert survey details into the database
     const insertSurveyQuery = `
       INSERT INTO public.survey (survey_title, survey_description, user_id)
       VALUES ($1, $2, $3)
@@ -26,23 +29,19 @@ export const createSurvey = async (surveyData, userId) => {
     ])
 
     if (!surveyId) {
-      console.error('Anket ID alınamadı.')
+      console.error('Survey ID not obtained.')
       return null
     }
 
+    // Insert survey questions into the database
     const insertSurveyQuestionsQuery = `
-    INSERT INTO public.survey_questions (survey_types, title, options, survey_id)
-    VALUES ($1, $2, $3, $4)
-  `
+      INSERT INTO public.survey_questions (survey_types, title, options, survey_id)
+      VALUES ($1, $2, $3, $4)
+    `
 
-    for (const question of surveyData.questions) {
-      console.log('Question:', question)
-      console.log('Options before processing:', question.options)
-
-      // Option'ları uygun şekilde stringified JSON olarak hazırla
+    for (const question of questions) {
+      // Process options
       const processedOptions = JSON.stringify(question.questions[0].options)
-
-      console.log('Processed Options:', processedOptions)
 
       await pg.none(insertSurveyQuestionsQuery, [
         question.survey_types,
@@ -52,7 +51,7 @@ export const createSurvey = async (surveyData, userId) => {
       ])
     }
 
-    console.log('Anket oluşturuldu. Anket ID:', surveyId)
+    console.log('Survey created. Survey ID:', surveyId)
 
     const createdSurveyDetails = {
       survey_id: surveyId,
@@ -63,11 +62,12 @@ export const createSurvey = async (surveyData, userId) => {
 
     return createdSurveyDetails
   } catch (error) {
-    console.error('Anket oluşturulurken bir hata oluştu:', error)
+    console.error('An error occurred while creating a survey:', error)
     throw error
   }
 }
 
+// Function to update an existing survey
 export const updateSurvey = async (surveyId, updatedSurveyData) => {
   try {
     // Check if the survey exists
@@ -125,8 +125,10 @@ export const updateSurvey = async (surveyId, updatedSurveyData) => {
   }
 }
 
+// Function to get details of all surveys
 export const getAllSurveys = async () => {
   try {
+    // Query to retrieve basic survey information
     const surveyQuery =
       'SELECT survey_id, created_date, user_id, survey_title, survey_description FROM survey '
 
@@ -150,13 +152,15 @@ export const getAllSurveys = async () => {
 
     return surveyList
   } catch (error) {
-    console.error('Anket verileri çekilirken bir hata oluştu:', error)
+    console.error('An error occurred while fetching survey data:', error)
     throw error
   }
 }
 
+// Function to get details of a specific survey by ID
 export const getSurveyDetailsById = async (surveyId) => {
   try {
+    // Query to retrieve detailed survey information
     const survey = await pg.one('SELECT * FROM survey WHERE survey_id = $1', [
       surveyId,
     ])
@@ -176,13 +180,15 @@ export const getSurveyDetailsById = async (surveyId) => {
 
     return null
   } catch (error) {
-    console.error('Anket detayları çekilirken bir hata oluştu:', error)
+    console.error('An error occurred while fetching survey details:', error)
     throw error
   }
 }
 
+// Function to get survey questions by survey ID
 const getSurveyQuestions = async (surveyId) => {
   try {
+    // Query to retrieve survey questions
     const surveyQuestions = await pg.manyOrNone(
       'SELECT * FROM survey_questions WHERE survey_id = $1',
       [surveyId],
@@ -190,27 +196,28 @@ const getSurveyQuestions = async (surveyId) => {
 
     return surveyQuestions
   } catch (error) {
-    console.error('Anket soruları çekilirken bir hata oluştu:', error)
+    console.error('An error occurred while fetching survey questions:', error)
     throw error
   }
 }
 
+// Function to record user responses to a survey
 export const userResponseCreate = async (surveyResponse, userId) => {
-  console.log('off', surveyResponse)
-
   try {
+    // Check if the user exists
     const userQuery = 'SELECT id FROM public.users WHERE id = $1'
     const userData = await pg.oneOrNone(userQuery, [userId])
     if (!userData) {
       return null
     }
 
-    // survey_id değerini kontrol et
+    // Check if the survey ID is provided
     if (!surveyResponse.surveyId) {
-      console.error('Anket ID bulunamadı.')
+      console.error('Survey ID not provided.')
       return null
     }
 
+    // Insert the user's response into the database
     const insertResponseQuery = `
       INSERT INTO public.survey_response (user_id, survey_id, response_survey)
       VALUES ($1, $2, $3)
@@ -219,18 +226,18 @@ export const userResponseCreate = async (surveyResponse, userId) => {
 
     const { response_id: responseId } = await pg.one(insertResponseQuery, [
       userId,
-      surveyResponse.surveyId, // survey_id değerini kullan
+      surveyResponse.surveyId,
       JSON.stringify(surveyResponse),
     ])
 
     if (!responseId) {
-      console.error('Anket ID alınamadı.')
+      console.error('Response ID not obtained.')
       return null
     }
 
     return responseId
   } catch (error) {
-    console.error('Anket oluşturulurken bir hata oluştu:', error)
+    console.error('An error occurred while creating a survey response:', error)
     throw error
   }
 }
